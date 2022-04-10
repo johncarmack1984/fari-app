@@ -78,7 +78,6 @@ export const CharacterCard: React.FC<{
             className={css({
               fontSize: "1.5rem",
               width: "100%",
-              // marginBottom: "1rem",
               borderBottom: hasSections ? "1px solid #f0a4a4" : undefined,
             })}
           >

@@ -12,6 +12,11 @@ import { Confetti } from "../../domains/confetti/Confetti";
 import { getUnix } from "../../domains/dayjs/getDayJS";
 import { IDiceRollResult } from "../../domains/dice/Dice";
 import { Id } from "../../domains/Id/Id";
+import { IDrawingAreaState } from "../../routes/Draw/TldrawWriterAndReader";
+import {
+  DefaultPlayerColor,
+  PlayerColors,
+} from "../../routes/Play/consts/PlayerColors";
 import { IPlayer, ISession } from "./IScene";
 
 export function useSession(props: { userId: string }) {
@@ -25,15 +30,21 @@ export function useSession(props: { userId: string }) {
         points: "3",
         isGM: true,
         private: false,
+        color: DefaultPlayerColor,
         npcs: [],
       },
       players: {},
       goodConfetti: 0,
       badConfetti: 0,
       paused: false,
-      tlDrawDoc: undefined,
+      tlDrawDoc: {
+        bindings: {},
+        shapes: {},
+      },
     })
   );
+  const [playerColorIndex, setPlayerColorIndex] = useState(0);
+  const me = getEveryone(session).find((p) => p.id === props.userId);
 
   useEffect(() => {
     let timeout: any;
@@ -129,10 +140,16 @@ export function useSession(props: { userId: string }) {
           return;
         }
         if (!draft.players[player.id]) {
-          draft.players[player.id] = player;
+          draft.players[player.id] = {
+            ...player,
+            color: PlayerColors[playerColorIndex],
+          };
         }
       })
     );
+    setPlayerColorIndex((prev) => {
+      return (prev + 1) % PlayerColors.length;
+    });
   }
 
   function fireGoodConfetti() {
@@ -177,11 +194,11 @@ export function useSession(props: { userId: string }) {
     );
   }
 
-  function updateDrawAreaObjects(doc: any) {
+  function updateDrawAreaObjects(state: IDrawingAreaState) {
     setSession((prev) => {
       return {
         ...prev,
-        tlDrawDoc: doc,
+        tlDrawDoc: state,
       };
     });
   }
@@ -201,9 +218,11 @@ export function useSession(props: { userId: string }) {
           isGM: false,
           private: false,
           points: "3",
+          color: draft.gm.color,
         });
       })
     );
+
     return id;
   }
 
@@ -283,6 +302,7 @@ export function useSession(props: { userId: string }) {
   return {
     state: { session },
     computed: {
+      me: me,
       everyone: getEveryone(session),
       playersAndNPCs: getPlayersAndNPCs(session),
     },

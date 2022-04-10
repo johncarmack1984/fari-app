@@ -10,6 +10,7 @@ import PanToolIcon from "@mui/icons-material/PanTool";
 import PeopleAltIcon from "@mui/icons-material/PeopleAlt";
 import PersonAddIcon from "@mui/icons-material/PersonAdd";
 import SaveIcon from "@mui/icons-material/Save";
+import Masonry from "@mui/lab/Masonry";
 import TabContext from "@mui/lab/TabContext";
 import TabPanel from "@mui/lab/TabPanel";
 import Alert from "@mui/material/Alert";
@@ -28,8 +29,6 @@ import FormControl from "@mui/material/FormControl";
 import FormHelperText from "@mui/material/FormHelperText";
 import Grid from "@mui/material/Grid";
 import IconButton from "@mui/material/IconButton";
-import ImageList from "@mui/material/ImageList";
-import ImageListItem from "@mui/material/ImageListItem";
 import InputLabel from "@mui/material/InputLabel";
 import Paper from "@mui/material/Paper";
 import Select from "@mui/material/Select";
@@ -40,6 +39,7 @@ import Tabs from "@mui/material/Tabs";
 import TextField from "@mui/material/TextField";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
+import useMediaQuery from "@mui/material/useMediaQuery";
 import React, { useContext, useEffect, useRef, useState } from "react";
 import { Prompt } from "react-router";
 import { CharactersContext } from "../../contexts/CharactersContext/CharactersContext";
@@ -52,10 +52,10 @@ import { SettingsContext } from "../../contexts/SettingsContext/SettingsContext"
 import { arraySort, IArraySortGetter } from "../../domains/array/arraySort";
 import { ICharacter } from "../../domains/character/types";
 import { IDiceRollResult } from "../../domains/dice/Dice";
-import { DragAndDropTypes } from "../../domains/drag-and-drop/DragAndDropTypes";
 import { Font } from "../../domains/font/Font";
 import { Icons } from "../../domains/Icons/Icons";
 import { useBlockReload } from "../../hooks/useBlockReload/useBlockReload";
+import { useElementWidth } from "../../hooks/useElementWidth/useElementWidth";
 import { LazyState } from "../../hooks/useLazyState/useLazyState";
 import { useResponsiveValue } from "../../hooks/useResponsiveValue/useResponsiveValue";
 import {
@@ -91,7 +91,7 @@ import {
   previewContentEditable,
 } from "../ContentEditable/ContentEditable";
 import { FateLabel } from "../FateLabel/FateLabel";
-import { IndexCard } from "../IndexCard/IndexCard";
+import { IndexCard, IndexCardMinWidth } from "../IndexCard/IndexCard";
 import { Page } from "../Page/Page";
 import { SplitButton } from "../SplitButton/SplitButton";
 import { Toolbox } from "../Toolbox/Toolbox";
@@ -138,6 +138,8 @@ export const Session: React.FC<IProps> = (props) => {
   useBlockReload(sceneManager.state.dirty);
 
   const theme = useTheme();
+  const isSmall = useMediaQuery(theme.breakpoints.down("md"));
+
   const miniTheme = useMiniTheme({
     enforceBackground: theme.palette.background.default,
   });
@@ -274,7 +276,7 @@ export const Session: React.FC<IProps> = (props) => {
     }
   };
   return (
-    <Page pb="6rem" isLive gameId={props.idFromParams}>
+    <Page pb="6rem" isLive gameId={props.idFromParams} maxWidth="none">
       <Box px="1rem">
         <Prompt when={true} message={t("manager.leave-without-saving")} />
 
@@ -398,10 +400,16 @@ export const Session: React.FC<IProps> = (props) => {
       <Fade in>
         <Box>
           <Grid container spacing={2}>
-            <Grid item xs={12} md={5} lg={3}>
+            <Grid
+              item
+              className={css({
+                flex: isSmall ? "1 1 auto" : "0 1 auto",
+                minWidth: "25rem",
+              })}
+            >
               {renderSidePanel()}
             </Grid>
-            <Grid item xs={12} md={7} lg={9}>
+            <Grid item xs={12} md>
               {renderSession()}
             </Grid>
           </Grid>
@@ -575,6 +583,7 @@ export const Session: React.FC<IProps> = (props) => {
               isMe: me?.id === gm.id,
               dataCyIndex: "gm",
               isChild: false,
+              color: gm.color,
               children: (
                 <>
                   {gm.npcs.map((npc, npcIndex) => {
@@ -591,6 +600,7 @@ export const Session: React.FC<IProps> = (props) => {
                           <Box mx="-.5rem">
                             {renderPlayerRow({
                               player: npc,
+                              color: gm.color,
                               canControl: me?.id === gm.id,
                               isMe: me?.id === gm.id,
                               isChild: true,
@@ -615,6 +625,7 @@ export const Session: React.FC<IProps> = (props) => {
                     player,
                     canControl,
                     isMe,
+                    color: player.color,
                     isChild: false,
                     dataCyIndex: playerRowIndex,
                   })}
@@ -676,6 +687,7 @@ export const Session: React.FC<IProps> = (props) => {
     isMe: boolean;
     dataCyIndex: number | string;
     isChild: boolean;
+    color: string;
     children?: JSX.Element;
   }) {
     const {
@@ -691,6 +703,8 @@ export const Session: React.FC<IProps> = (props) => {
     return (
       <PlayerRow
         data-cy={`scene.player-row.${playerRowDataCyIndex}`}
+        color={options.color}
+        isChild={isChild}
         permissions={{
           canRoll: canControl,
           canUpdatePoints: canControl,
@@ -770,19 +784,19 @@ export const Session: React.FC<IProps> = (props) => {
   function renderCharacterCards() {
     const everyone = sessionManager.computed.everyone;
     const characters = sessionCharactersManager.state.characterSheets;
-    const playersWithCharacterSheets = everyone
-      .map((player) => {
-        const characterSheetMatch = characters[player.id];
+    const playersWithCharacterSheets = Object.keys(characters)
+      .map((characterId) => {
+        const playerMatch = everyone.find(
+          (player) => player.id === characterId
+        ) as IPlayer;
         return {
-          ...player,
-          characterSheet: characterSheetMatch,
+          ...playerMatch,
+          characterSheet: characters[characterId],
         };
       })
-      .filter((player) => player.characterSheet)
       .sort((a, b) => {
         return a.id === props.userId ? -1 : b.id === props.userId ? 1 : 0;
       });
-
     return (
       <>
         <Box>
@@ -799,7 +813,13 @@ export const Session: React.FC<IProps> = (props) => {
             <MiniThemeContext.Provider value={miniTheme}>
               {playersWithCharacterSheets.map((player, index) => {
                 const isMe = props.userId === player.id;
+                const isVisible = isGM || !player.private;
                 const canControl = isGM || isMe;
+
+                if (!isVisible) {
+                  return null;
+                }
+
                 return (
                   <Box
                     key={player?.id || index}
@@ -835,22 +855,18 @@ export const Session: React.FC<IProps> = (props) => {
   }
 
   function renderZones() {
-    const tokenTitles = Object.values(sessionManager.state.session.players).map(
-      (p) => (p.character?.name ?? p.playerName) as string
-    );
-
     return (
       <TlDrawErrorBoundary>
         <Box border={`1px solid ${theme.palette.divider}`} margin="0 auto">
           {isGM ? (
             <TldrawWriter
-              initialDoc={sessionManager.state.session.tlDrawDoc}
+              state={sessionManager.state.session.tlDrawDoc}
               onChange={(state) => {
                 sessionManager.actions.updateDrawAreaObjects(state);
               }}
             />
           ) : (
-            <TldrawReader doc={sessionManager.state.session.tlDrawDoc} />
+            <TldrawReader state={sessionManager.state.session.tlDrawDoc} />
           )}
         </Box>
       </TlDrawErrorBoundary>
@@ -1061,18 +1077,19 @@ export function Scene(props: {
   const headerBackgroundColor = useTextColors(
     theme.palette.background.paper
   ).primary;
-  const numberOfColumnsForCards = useResponsiveValue({
-    xl: 3,
-    lg: 3,
-    md: 2,
-    sm: 1,
-    xs: 1,
-  });
+
+  const indexCardsContainerRef = useRef<HTMLElement>(null);
+  const indexCardsContainerWidth = useElementWidth(indexCardsContainerRef);
+  const numberOfColumnsForIndexCardsMasonry = Math.floor(
+    indexCardsContainerWidth / IndexCardMinWidth
+  );
+
   const hiddenIndexCardRecord = useHiddenIndexCardRecord(
     sceneManager.state.scene?.indexCards
   );
 
   const [sort, setSort] = useState<SortMode>(SortMode.None);
+
   const [savedSnack, setSavedSnack] = useState(false);
   const [sceneTab, setSceneTab] = useState<"public" | "private" | "notes">(
     "public"
@@ -1436,68 +1453,86 @@ export function Scene(props: {
     const sortByPinned: IArraySortGetter<IIndexCard> = (indexCard) => {
       return { value: indexCard.pinned, direction: "asc" };
     };
-    const sortByGroup: IArraySortGetter<IIndexCard> = (indexCard) => {
-      return { value: indexCard.subCards.length > 0, direction: "asc" };
-    };
+
     const sorters: Array<IArraySortGetter<IIndexCard>> = [];
-    if (sort === SortMode.GroupFirst) {
-      sorters.push(sortByGroup);
-    } else if (sort === SortMode.PinnedFirst) {
+    if (sort === SortMode.PinnedFirst) {
       sorters.push(sortByPinned);
     }
-    const sortedCards = arraySort(indexCardsFromTab, sorters);
+
+    const cardsWithChildren = indexCardsFromTab.filter((card) => {
+      return card.subCards.length > 0;
+    });
+    const cardsWithoutChildren = indexCardsFromTab.filter((card) => {
+      return card.subCards.length === 0;
+    });
 
     return (
+      <Box ref={indexCardsContainerRef}>
+        {renderIndexCardMasonry({
+          columns: 1,
+          allCards: indexCardsFromTab,
+          cards: cardsWithChildren,
+          type: type,
+        })}
+        {renderIndexCardMasonry({
+          columns: numberOfColumnsForIndexCardsMasonry,
+          allCards: indexCardsFromTab,
+          cards: cardsWithoutChildren,
+          type: type,
+        })}
+      </Box>
+    );
+  }
+
+  function renderIndexCardMasonry(renderProps: {
+    columns: number;
+    cards: Array<IIndexCard>;
+    allCards: Array<IIndexCard>;
+    type: IIndexCardType;
+  }) {
+    if (!renderProps.cards.length) {
+      return null;
+    }
+    return (
       <Box>
-        <ImageList
-          variant={sortedCards.length >= 10 ? "masonry" : "standard"}
-          cols={numberOfColumnsForCards}
-          gap={16}
-          className={css({
-            overflow: "initial",
-          })}
-        >
-          {sortedCards.map((indexCard, index) => {
+        <Masonry columns={renderProps.columns}>
+          {renderProps.cards.map((indexCard, index) => {
             const hasChildren = indexCard.subCards.length > 0;
             return (
-              <ImageListItem
-                key={`${indexCard.id}.${type}`}
-                cols={hasChildren ? numberOfColumnsForCards : 1}
-                className={css({
-                  width: "100%",
-                  paddingTop: ".25rem",
-                  paddingBottom: ".25rem",
-                  // Cards with children take 100% of the available space
-                  columnSpan: hasChildren ? "all" : "initial",
-                  /**
-                   * Disables bottom being cut-off in Chrome
-                   */
-                  // breakInside: "avoid",
-                  /**
-                   * Disables bottom being cut-off in Firefox
-                   */
-                  display: hasChildren ? "block" : "inline-block",
-                })}
+              <Box
+                key={indexCard.id}
+                sx={{
+                  padding: ".5rem",
+                  width: hasChildren ? "100% !important" : undefined,
+                }}
               >
                 <IndexCard
-                  type={type}
-                  reactDndIndex={index}
-                  allCards={sortedCards}
-                  canMove={sort === SortMode.None && props.isGM}
-                  key={indexCard.id}
-                  reactDndType={DragAndDropTypes.SceneIndexCards}
+                  type={renderProps.type}
+                  allCards={renderProps.allCards}
+                  canMove={
+                    (sort === SortMode.None ||
+                      indexCard.subCards.length === 0) &&
+                    props.isGM
+                  }
                   data-cy={`scene.aspect.${index}`}
                   id={`index-card-${indexCard.id}`}
                   indexCardHiddenRecord={
                     hiddenIndexCardRecord.state.indexCardHiddenRecord
                   }
+                  onMove={(oldId, newId) => {
+                    sceneManager.actions.moveIndexCard(
+                      oldId,
+                      newId,
+                      renderProps.type
+                    );
+                  }}
                   onToggleVisibility={(indexCard) => {
                     hiddenIndexCardRecord.actions.toggle(indexCard);
                   }}
                   onTogglePrivate={() => {
                     sceneManager.actions.toggleIndexCardSection(
                       indexCard,
-                      type
+                      renderProps.type
                     );
                   }}
                   onMoveTo={(
@@ -1507,40 +1542,39 @@ export function Scene(props: {
                     sceneManager.actions.moveIndexCardTo(
                       idOfIndexCardToMove,
                       idOfIndexCardToMoveTo,
-                      type
+                      renderProps.type
                     );
                   }}
                   onMoveOut={(idOfIndexCardToMove) => {
                     sceneManager.actions.moveIndexCardOut(
                       idOfIndexCardToMove,
-                      type
+                      renderProps.type
                     );
                   }}
                   isGM={props.isGM}
                   indexCard={indexCard}
                   onRoll={props.onRoll}
                   onPoolClick={props.onPoolClick}
-                  onMove={(dragIndex, hoverIndex) => {
-                    sceneManager.actions.moveIndexCard(
-                      dragIndex,
-                      hoverIndex,
-                      type
-                    );
-                  }}
                   onChange={(newIndexCard) => {
-                    props.onIndexCardUpdate(newIndexCard, type);
+                    props.onIndexCardUpdate(newIndexCard, renderProps.type);
                   }}
                   onDuplicate={() => {
-                    sceneManager.actions.duplicateIndexCard(indexCard, type);
+                    sceneManager.actions.duplicateIndexCard(
+                      indexCard,
+                      renderProps.type
+                    );
                   }}
                   onRemove={() => {
-                    sceneManager.actions.removeIndexCard(indexCard.id, type);
+                    sceneManager.actions.removeIndexCard(
+                      indexCard.id,
+                      renderProps.type
+                    );
                   }}
                 />
-              </ImageListItem>
+              </Box>
             );
           })}
-        </ImageList>
+        </Masonry>
       </Box>
     );
   }
