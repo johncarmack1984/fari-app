@@ -760,6 +760,7 @@ export const Session: React.FC<IProps> = (props) => {
         }}
         onPointsChange={(points, maxPoints) => {
           if (isGM) {
+            sessionManager.actions.updatePlayerPoints(player.id, points);
             sessionCharactersManager.actions.updatePlayerCharacterMainPointCounter(
               player.id,
               points,
@@ -857,7 +858,15 @@ export const Session: React.FC<IProps> = (props) => {
   function renderZones() {
     return (
       <TlDrawErrorBoundary>
-        <Box border={`1px solid ${theme.palette.divider}`} margin="0 auto">
+        <Box
+          sx={{
+            border: `1px solid ${theme.palette.divider}`,
+            margin: "0 auto",
+            height: "50vh",
+            position: "relative",
+            overflow: "hidden",
+          }}
+        >
           {isGM ? (
             <TldrawWriter
               state={sessionManager.state.session.tlDrawDoc}
