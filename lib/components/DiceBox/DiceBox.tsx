@@ -15,7 +15,7 @@ import {
   CommmandSetOptions,
   Dice,
   DiceCommandOptions,
-  IDiceRollResult,
+  IDiceRollResult
 } from "../../domains/dice/Dice";
 import { Font } from "../../domains/font/Font";
 import { useLatestDiceRoll } from "../../hooks/useLatestDiceRoll/useLatestDiceRoll";
@@ -87,7 +87,7 @@ export const DiceBox: React.FC<IProps> = (props) => {
   const diceRollingAnimationStyle = css({
     animationName: "spin",
     animationDuration: "250ms",
-    animationIterationCount: "infinite",
+    animationIterationCount: "4",
     animationTimingFunction: "linear",
   });
   const shouldListResult =
@@ -241,7 +241,7 @@ export const DiceBox: React.FC<IProps> = (props) => {
     return (
       <Box
         ref={anchorEl}
-        onMouseEnter={(event) => {
+        onMouseEnter={() => {
           handlePopoverOpen();
         }}
         onMouseLeave={() => {
